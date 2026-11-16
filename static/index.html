@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map Navigator</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#1c2430; --muted:#6b7686; --accent:#2563eb; --good:#16a34a; --bad:#dc2626; --line:#e3e7ee; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); height:100vh; display:flex; flex-direction:column; }
+  header { background:#111827; color:#fff; padding:12px 20px; display:flex; align-items:baseline; gap:14px; }
+  header h1 { font-size:18px; margin:0; }
+  header span { font-size:13px; color:#9ca3af; }
+  #api-status { margin-left:auto; font-size:12px; padding:3px 10px; border-radius:99px; background:#374151; }
+  #api-status.ok { background:#166534; } #api-status.err { background:#991b1b; }
+  main { flex:1; display:flex; min-height:0; }
+  aside { width:340px; padding:14px; overflow-y:auto; background:var(--bg); border-right:1px solid var(--line); }
+  #map { flex:1; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:12px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:8px 0 3px; }
+  label:first-child { margin-top:0; }
+  select, button { width:100%; padding:8px; font-size:14px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  select[multiple] { height:84px; }
+  button { background:var(--accent); color:#fff; border:none; font-weight:600; cursor:pointer; margin-top:10px; }
+  button.secondary { background:#fff; color:var(--ink); border:1px solid var(--line); margin-top:6px; }
+  button:hover { filter:brightness(.95); }
+  .row { display:flex; gap:8px; } .row > * { flex:1; }
+  .stat { display:flex; justify-content:space-between; font-size:14px; padding:4px 0; border-bottom:1px dashed var(--line); }
+  .stat:last-child { border:none; }
+  .stat b { font-variant-numeric: tabular-nums; }
+  .big { font-size:22px; font-weight:700; margin-bottom:4px; }
+  .err { color:var(--bad); font-size:14px; }
+  ol.legs { margin:8px 0 0; padding-left:20px; font-size:13px; }
+  ol.legs li { padding:2px 0; } ol.legs span { color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:right; padding:5px 4px; border-bottom:1px solid var(--line); }
+  th:first-child, td:first-child { text-align:left; }
+  tr.best td { background:#ecfdf5; font-weight:600; }
+  .hint { font-size:12px; color:var(--muted); margin-top:6px; }
+  .legend { display:flex; gap:12px; font-size:12px; color:var(--muted); flex-wrap:wrap; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+  @media (max-width: 800px) { main { flex-direction:column-reverse; } aside { width:100%; height:50%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🗺️ Map Navigator</h1>
+  <span>DSA Minor Project · Graph shortest-path on an Indian road network</span>
+  <div id="api-status">connecting…</div>
+</header>
+<main>
+  <aside>
+    <div class="card">
+      <label>From</label><select id="source"></select>
+      <label>To</label><select id="destination"></select>
+      <button class="secondary" id="swap">⇅ Swap</button>
+      <label style="margin-top:10px">Algorithm</label>
+      <select id="algorithm">
+        <option value="dijkstra">Dijkstra (shortest distance)</option>
+        <option value="astar">A* (shortest, guided search)</option>
+        <option value="bfs">BFS (fewest roads / hops)</option>
+      </select>
+      <label>Avoid cities (Ctrl/Cmd + click for many)</label>
+      <select id="avoid" multiple></select>
+      <button id="go">Find route</button>
+      <button class="secondary" id="compare">Compare all algorithms</button>
+      <div class="hint">Tip: click two cities on the map to set From and To.</div>
+    </div>
+    <div class="card" id="result" style="display:none"></div>
+    <div class="card" id="compare-card" style="display:none"></div>
+    <div class="card legend">
+      <span><i style="background:#2563eb"></i>Route</span>
+      <span><i style="background:#f59e0b"></i>Explored by algorithm</span>
+      <span><i style="background:#dc2626"></i>Avoided</span>
+    </div>
+  </aside>
+  <div id="map"></div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ---- Set this to your deployed API URL if the frontend is hosted separately, e.g. "https://map-navigator.onrender.com"
+const API_BASE = "";
+
+const $ = id => document.getElementById(id);
+const map = L.map("map").setView([24.5, 78], 5);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap contributors", maxZoom: 18 }).addTo(map);
+
+let cities = [], cityByName = {}, markers = {};
+let routeLayer = L.layerGroup().addTo(map), exploreLayer = L.layerGroup().addTo(map);
+let clickToggle = 0;
+
+async function api(path) {
+  const res = await fetch(API_BASE + path);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function init() {
+  try {
+    const health = await api("/api/health");
+    $("api-status").textContent = `API online · ${health.cities} cities · ${health.roads} roads`;
+    $("api-status").className = "ok";
+    cities = await api("/api/cities");
+    const roads = await api("/api/roads");
+    cities.forEach(c => cityByName[c.name] = c);
+
+    roads.forEach(r => {
+      const a = cityByName[r.from], b = cityByName[r.to];
+      L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: "#9ca3af", weight: 1.5, opacity: .7 })
+        .bindTooltip(`${r.from} – ${r.to}: ${r.km} km`, { sticky: true }).addTo(map);
+    });
+    cities.forEach(c => {
+      markers[c.name] = L.circleMarker([c.lat, c.lon], { radius: 5, color: "#111827", weight: 1, fillColor: "#fff", fillOpacity: 1 })
+        .bindTooltip(c.name).addTo(map)
+        .on("click", () => pickFromMap(c.name));
+      for (const id of ["source", "destination", "avoid"]) $(id).add(new Option(c.name, c.name));
+    });
+    $("source").value = "Delhi"; $("destination").value = "Mumbai";
+    $("avoid").selectedIndex = -1;
+  } catch (e) {
+    $("api-status").textContent = "API offline";
+    $("api-status").className = "err";
+    $("result").style.display = "block";
+    $("result").innerHTML = `<div class="err">Cannot reach API (${e.message}). Start the server with <code>python app.py</code>.</div>`;
+  }
+}
+
+function pickFromMap(name) {
+  $(clickToggle === 0 ? "source" : "destination").value = name;
+  clickToggle = 1 - clickToggle;
+}
+
+function query() {
+  const avoid = [...$("avoid").selectedOptions].map(o => o.value).join(",");
+  const p = new URLSearchParams({ source: $("source").value, destination: $("destination").value, avoid });
+  return p;
+}
+
+function clearLayers() { routeLayer.clearLayers(); exploreLayer.clearLayers(); }
+
+function drawAvoided() {
+  [...$("avoid").selectedOptions].forEach(o => {
+    const c = cityByName[o.value];
+    L.circleMarker([c.lat, c.lon], { radius: 9, color: "#dc2626", weight: 2, fillOpacity: .15 }).addTo(exploreLayer);
+  });
+}
+
+function draw(res) {
+  clearLayers(); drawAvoided();
+  res.explored.forEach(n => {
+    const c = cityByName[n];
+    L.circleMarker([c.lat, c.lon], { radius: 8, color: "#f59e0b", weight: 1, fillColor: "#f59e0b", fillOpacity: .35 }).addTo(exploreLayer);
+  });
+  if (res.found) {
+    const pts = res.path.map(n => [cityByName[n].lat, cityByName[n].lon]);
+    // dashed straight line shown first as a fallback, replaced by the real road once loaded
+    const fallback = L.polyline(pts, { color: "#2563eb", weight: 3, dashArray: "6 8" }).addTo(routeLayer);
+    res.path.forEach((n, i) => {
+      const c = cityByName[n];
+      L.circleMarker([c.lat, c.lon], { radius: 7, color: "#2563eb", fillColor: i === 0 ? "#16a34a" : i === res.path.length - 1 ? "#dc2626" : "#2563eb", fillOpacity: 1, weight: 2 })
+        .bindTooltip(n, { permanent: true, direction: "top", offset: [0, -6] }).addTo(routeLayer);
+    });
+    map.fitBounds(L.latLngBounds(pts).pad(0.2));
+    drawRoad(res, fallback);
+  }
+}
+
+// Fetch real road geometry through the chosen cities (OSRM public routing service).
+// The DSA algorithm decides WHICH cities to pass through; OSRM only draws the road shape between them.
+let drawToken = 0;
+async function drawRoad(res, fallback) {
+  const token = ++drawToken;
+  const coords = res.path.map(n => `${cityByName[n].lon},${cityByName[n].lat}`).join(";");
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+    const d = await r.json();
+    if (token !== drawToken) return;            // user already started another search
+    if (d.code !== "Ok") throw new Error(d.code);
+    const route = d.routes[0];
+    routeLayer.removeLayer(fallback);
+    L.geoJSON(route.geometry, { style: { color: "#2563eb", weight: 5, opacity: .9 } }).addTo(routeLayer).bringToBack();
+    const el = $("road-info");
+    if (el) {
+      const mins = Math.round(route.duration / 60);
+      el.innerHTML = `<span>Real road distance</span><b>${(route.distance / 1000).toFixed(0)} km · ${Math.floor(mins / 60)} h ${mins % 60} min</b>`;
+    }
+  } catch (e) {
+    const el = $("road-info");
+    if (el) el.innerHTML = `<span>Real road distance</span><b>unavailable (offline?)</b>`;
+  }
+}
+
+function showResult(res) {
+  const box = $("result");
+  box.style.display = "block";
+  if (!res.found) {
+    box.innerHTML = `<div class="err">No route found between these cities${$("avoid").selectedOptions.length ? " with the selected cities avoided" : ""}.</div>`;
+    return;
+  }
+  const names = { dijkstra: "Dijkstra", astar: "A*", bfs: "BFS" };
+  box.innerHTML = `
+    <div class="big">${res.distance_km} km <small style="font-size:12px;font-weight:400;color:var(--muted)">graph estimate</small></div>
+    <div class="stat" id="road-info"><span>Real road distance</span><b>loading…</b></div>
+    <div class="stat"><span>Estimated drive (60 km/h)</span><b>${res.eta_hours} h ${res.eta_minutes} min</b></div>
+    <div class="stat"><span>Roads used</span><b>${res.hops}</b></div>
+    <div class="stat"><span>Algorithm</span><b>${names[res.algorithm]}</b></div>
+    <div class="stat"><span>Cities explored</span><b>${res.nodes_explored}</b></div>
+    <div class="stat"><span>Compute time</span><b>${res.time_ms} ms</b></div>
+    <ol class="legs">${res.legs.map(l => `<li>${l.from} → ${l.to} <span>${l.km} km</span></li>`).join("")}</ol>`;
+}
+
+$("go").onclick = async () => {
+  try {
+    $("compare-card").style.display = "none";
+    const res = await api(`/api/route?${query()}&algorithm=${$("algorithm").value}`);
+    draw(res); showResult(res);
+  } catch (e) { $("result").style.display = "block"; $("result").innerHTML = `<div class="err">${e.message}</div>`; }
+};
+
+$("compare").onclick = async () => {
+  try {
+    const list = await api(`/api/compare?${query()}`);
+    const names = { dijkstra: "Dijkstra", astar: "A*", bfs: "BFS" };
+    const best = Math.min(...list.filter(r => r.found).map(r => r.distance_km));
+    const card = $("compare-card");
+    card.style.display = "block";
+    card.innerHTML = `<table><tr><th>Algorithm</th><th>km</th><th>Hops</th><th>Explored</th><th>ms</th></tr>` +
+      list.map(r => `<tr class="${r.found && r.distance_km === best ? "best" : ""}"><td>${names[r.algorithm]}</td><td>${r.found ? r.distance_km : "–"}</td><td>${r.found ? r.hops : "–"}</td><td>${r.nodes_explored}</td><td>${r.time_ms}</td></tr>`).join("") +
+      `</table><div class="hint">Green = shortest distance. BFS minimises the number of roads, not kilometres. A* explores fewer cities than Dijkstra.</div>`;
+    const d = list.find(r => r.algorithm === $("algorithm").value) || list[0];
+    draw(d); showResult(d);
+  } catch (e) { $("result").style.display = "block"; $("result").innerHTML = `<div class="err">${e.message}</div>`; }
+};
+
+$("swap").onclick = () => { const s = $("source").value; $("source").value = $("destination").value; $("destination").value = s; };
+
+init();
+</script>
+</body>
+</html>
