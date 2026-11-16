@@ -98,6 +98,7 @@ async function api(path) {
   return data;
 }
 
+/*
 async function init() {
   try {
     const health = await api("/api/health");
@@ -116,6 +117,26 @@ async function init() {
       markers[c.name] = L.circleMarker([c.lat, c.lon], { radius: 5, color: "#111827", weight: 1, fillColor: "#fff", fillOpacity: 1 })
         .bindTooltip(c.name).addTo(map)
         .on("click", () => pickFromMap(c.name));
+      for (const id of ["source", "destination", "avoid"]) $(id).add(new Option(c.name, c.name));
+    });
+    $("source").value = "Delhi"; $("destination").value = "Mumbai";
+    $("avoid").selectedIndex = -1;
+  } catch (e) {
+    $("api-status").textContent = "API offline";
+    $("api-status").className = "err";
+    $("result").style.display = "block";
+    $("result").innerHTML = `<div class="err">Cannot reach API (${e.message}). Start the server with <code>python app.py</code>.</div>`;
+  }
+}
+  */
+ async function init() {
+  try {
+    const health = await api("/api/health");
+    $("api-status").textContent = `API online · ${health.cities} cities · ${health.roads} roads`;
+    $("api-status").className = "ok";
+    cities = await api("/api/cities");
+    cities.forEach(c => {
+      cityByName[c.name] = c;
       for (const id of ["source", "destination", "avoid"]) $(id).add(new Option(c.name, c.name));
     });
     $("source").value = "Delhi"; $("destination").value = "Mumbai";
