@@ -98,46 +98,6 @@ async function api(path) {
   return data;
 }
 
-const pickLayer = L.layerGroup().addTo(map);
-
-function nearestCity(lat, lon) {
-  let best = null, bestDist = Infinity;
-  for (const c of cities) {
-    const dLat = c.lat - lat;
-    const dLon = c.lon - lon;
-    const d2 = dLat * dLat + dLon * dLon;
-    if (d2 < bestDist) {
-      bestDist = d2;
-      best = c;
-    }
-  }
-  return best;
-}
-
-map.on("click", (e) => {
-  if (!cities.length) return;
-  const c = nearestCity(e.latlng.lat, e.latlng.lng);
-  if (!c) return;
-
-  if (clickToggle === 0) {
-    pickLayer.clearLayers();
-    $("source").value = c.name;
-    L.circleMarker([c.lat, c.lon], {
-      radius: 7, color: "#16a34a", fillColor: "#16a34a", fillOpacity: 0.9, weight: 2
-    }).bindTooltip(`From: ${c.name}`, { permanent: true, direction: "top" }).addTo(pickLayer);
-    clickToggle = 1;
-  } else {
-    $("destination").value = c.name;
-    L.circleMarker([c.lat, c.lon], {
-      radius: 7, color: "#dc2626", fillColor: "#dc2626", fillOpacity: 0.9, weight: 2
-    }).bindTooltip(`To: ${c.name}`, { permanent: true, direction: "top" }).addTo(pickLayer);
-    clickToggle = 0;
-
-    // Optional: automatically compute & draw the route right after picking the 2nd city
-    $("go").click();
-  }
-});
-
 /*
 async function init() {
   try {
