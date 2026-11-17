@@ -6,72 +6,290 @@
 <title>Map Navigator</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  :root { --bg:#f5f6f8; --card:#fff; --ink:#1c2430; --muted:#6b7686; --accent:#2563eb; --good:#16a34a; --bad:#dc2626; --line:#e3e7ee; }
+  :root {
+    --bg: #f8f9fb;
+    --card: #ffffff;
+    --ink: #18202c;
+    --muted: #647082;
+    --accent: #2563eb;
+    --good: #16a34a;
+    --bad: #dc2626;
+    --line: #eaedf2;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); height:100vh; display:flex; flex-direction:column; }
-  header { background:#111827; color:#fff; padding:12px 20px; display:flex; align-items:baseline; gap:14px; }
-  header h1 { font-size:18px; margin:0; }
-  header span { font-size:13px; color:#9ca3af; }
-  #api-status { margin-left:auto; font-size:12px; padding:3px 10px; border-radius:99px; background:#374151; }
-  #api-status.ok { background:#166534; } #api-status.err { background:#991b1b; }
-  main { flex:1; display:flex; min-height:0; }
-  aside { width:340px; padding:14px; overflow-y:auto; background:var(--bg); border-right:1px solid var(--line); }
-  #map { flex:1; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:12px; }
-  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:8px 0 3px; }
-  label:first-child { margin-top:0; }
-  select, button { width:100%; padding:8px; font-size:14px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
-  select[multiple] { height:84px; }
-  button { background:var(--accent); color:#fff; border:none; font-weight:600; cursor:pointer; margin-top:10px; }
-  button.secondary { background:#fff; color:var(--ink); border:1px solid var(--line); margin-top:6px; }
-  button:hover { filter:brightness(.95); }
-  .row { display:flex; gap:8px; } .row > * { flex:1; }
-  .stat { display:flex; justify-content:space-between; font-size:14px; padding:4px 0; border-bottom:1px dashed var(--line); }
-  .stat:last-child { border:none; }
-  .stat b { font-variant-numeric: tabular-nums; }
-  .big { font-size:22px; font-weight:700; margin-bottom:4px; }
-  .err { color:var(--bad); font-size:14px; }
-  ol.legs { margin:8px 0 0; padding-left:20px; font-size:13px; }
-  ol.legs li { padding:2px 0; } ol.legs span { color:var(--muted); }
-  table { width:100%; border-collapse:collapse; font-size:12.5px; }
-  th, td { text-align:right; padding:5px 4px; border-bottom:1px solid var(--line); }
-  th:first-child, td:first-child { text-align:left; }
-  tr.best td { background:#ecfdf5; font-weight:600; }
-  .hint { font-size:12px; color:var(--muted); margin-top:6px; }
-  .legend { display:flex; gap:12px; font-size:12px; color:var(--muted); flex-wrap:wrap; }
-  .legend i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-  @media (max-width: 800px) { main { flex-direction:column-reverse; } aside { width:100%; height:50%; } }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #ffffff;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+    padding: 11px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 16px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  header span { font-size: 12.5px; color: var(--muted); }
+  #api-status {
+    margin-left: auto;
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+  }
+  #api-status.ok { background: #dcfce7; color: #166534; }
+  #api-status.err { background: #fee2e2; color: #991b1b; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  aside {
+    width: 332px;
+    padding: 14px;
+    overflow-y: auto;
+    background: var(--bg);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #map { flex: 1; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 0 4px;
+  }
+  .field-row:first-child { margin-top: 0; }
+  label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    display: block;
+    margin: 10px 0 4px;
+  }
+  .field-row label { margin: 0; }
+
+  select, button {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 13.5px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+  }
+  select:focus, button:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.2);
+    border-color: var(--accent);
+  }
+  select[multiple] { height: 90px; padding: 4px; }
+
+  .swap-inline {
+    width: auto;
+    padding: 2px 8px;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    background: #f8fafc;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .swap-inline:hover { color: var(--ink); background: #f1f5f9; }
+
+  details.avoid-box { margin-top: 10px; }
+  details.avoid-box summary {
+    list-style: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+  details.avoid-box summary::-webkit-details-marker { display: none; }
+  .avoid-count {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: var(--ink);
+  }
+
+  .actions { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 9px 12px;
+  }
+  button.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    font-weight: 500;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 7px 10px;
+  }
+  button.ghost:hover { color: var(--ink); background: #f8fafc; }
+  button.primary:hover { filter: brightness(0.96); }
+
+  .map-cue {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid var(--line);
+    font-size: 11.5px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .cue-badge {
+    font-weight: 600;
+    color: var(--accent);
+    background: #eff6ff;
+    padding: 2px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .big { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .big small { font-size: 12px; font-weight: 500; color: var(--muted); }
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .stat:last-of-type { border-bottom: none; }
+  .stat span { color: var(--muted); }
+  .stat b { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .meta-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+  .meta-cell { background: var(--bg); border-radius: 8px; padding: 6px 4px; }
+  .meta-cell .val { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .meta-cell .lbl { font-size: 10.5px; color: var(--muted); }
+
+  .err { color: var(--bad); font-size: 13px; line-height: 1.45; }
+  ol.legs { margin: 10px 0 0; padding-left: 18px; font-size: 12.5px; }
+  ol.legs li { padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  ol.legs li:last-child { border-bottom: none; }
+  ol.legs span { color: var(--muted); float: right; font-variant-numeric: tabular-nums; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  th { color: var(--muted); font-weight: 600; }
+  th:first-child, td:first-child { text-align: left; }
+  tr.best td { background: #f0fdf4; color: #166534; font-weight: 600; }
+  .hint { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+
+  .legend {
+    margin-top: auto;
+    padding: 8px 4px 2px;
+    display: flex;
+    gap: 12px;
+    font-size: 11.5px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .legend i {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  @media (max-width: 800px) {
+    main { flex-direction: column-reverse; }
+    aside { width: 100%; height: 50%; border-right: none; border-top: 1px solid var(--line); }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>🗺️ Map Navigator</h1>
-  <span>DSA Minor Project · Graph shortest-path on an Indian road network</span>
+  <h1>Map Navigator</h1>
+  <span>Indian Road Network · Shortest Path</span>
   <div id="api-status">connecting…</div>
 </header>
 <main>
   <aside>
     <div class="card">
-      <label>From</label><select id="source"></select>
-      <label>To</label><select id="destination"></select>
-      <button class="secondary" id="swap">⇅ Swap</button>
-      <label style="margin-top:10px">Algorithm</label>
+      <div class="field-row">
+        <label for="source">From</label>
+        <button type="button" class="swap-inline" id="swap" title="Swap From and To">⇄ Swap</button>
+      </div>
+      <select id="source"></select>
+
+      <label for="destination">To</label>
+      <select id="destination"></select>
+
+      <label for="algorithm">Algorithm</label>
       <select id="algorithm">
         <option value="dijkstra">Dijkstra (shortest distance)</option>
-        <option value="astar">A* (shortest, guided search)</option>
-        <option value="bfs">BFS (fewest roads / hops)</option>
+        <option value="astar">A* (guided shortest path)</option>
+        <option value="bfs">BFS (fewest roads)</option>
       </select>
-      <label>Avoid cities (Ctrl/Cmd + click for many)</label>
-      <select id="avoid" multiple></select>
-      <button id="go">Find route</button>
-      <button class="secondary" id="compare">Compare all algorithms</button>
-      <div class="hint">Tip: click two cities on the map to set From and To.</div>
+
+      <details class="avoid-box" id="avoid-details">
+        <summary>
+          <span>Avoid cities</span>
+          <span class="avoid-count" id="avoid-count">0</span>
+        </summary>
+        <select id="avoid" multiple style="margin-top:6px"></select>
+        <div class="hint" style="margin-top:4px">Hold Ctrl/Cmd to select multiple cities.</div>
+      </details>
+
+      <div class="actions">
+        <button type="button" class="primary" id="go">Find route</button>
+        <button type="button" class="ghost" id="compare">Compare all algorithms</button>
+      </div>
+
+      <div class="map-cue">
+        <span>Click map cities to pick route</span>
+        <span class="cue-badge" id="click-cue">Next: From</span>
+      </div>
     </div>
+
     <div class="card" id="result" style="display:none"></div>
     <div class="card" id="compare-card" style="display:none"></div>
-    <div class="card legend">
+
+    <div class="legend">
       <span><i style="background:#2563eb"></i>Route</span>
-      <span><i style="background:#f59e0b"></i>Explored by algorithm</span>
+      <span><i style="background:#f59e0b"></i>Explored</span>
       <span><i style="background:#dc2626"></i>Avoided</span>
     </div>
   </aside>
@@ -80,16 +298,51 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ---- Set this to your deployed API URL if the frontend is hosted separately, e.g. "https://map-navigator.onrender.com"
 const API_BASE = "";
 
 const $ = id => document.getElementById(id);
 const map = L.map("map").setView([24.5, 78], 5);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap contributors", maxZoom: 18 }).addTo(map);
+
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "&copy; OpenStreetMap contributors",
+  maxZoom: 19
+}).addTo(map);
 
 let cities = [], cityByName = {}, markers = {};
-let routeLayer = L.layerGroup().addTo(map), exploreLayer = L.layerGroup().addTo(map);
+const roadLayer = L.layerGroup();
+const cityLayer = L.layerGroup().addTo(map);
+const routeLayer = L.layerGroup().addTo(map);
+const exploreLayer = L.layerGroup().addTo(map);
 let clickToggle = 0;
+
+function updateClickCue() {
+  $("click-cue").textContent = clickToggle === 0 ? "Next: From" : "Next: To";
+}
+
+function updateAvoidCount() {
+  $("avoid-count").textContent = String($("avoid").selectedOptions.length);
+}
+
+$("avoid").addEventListener("change", updateAvoidCount);
+
+function updateMapDetail() {
+  const z = map.getZoom();
+  const radius = z >= 8 ? 4.5 : z >= 6 ? 3 : 1.8;
+  const weight = z >= 8 ? 1 : 0.6;
+
+  Object.values(markers).forEach(m => {
+    m.setRadius(radius);
+    m.setStyle({ weight, fillOpacity: z >= 6 ? 0.85 : 0.6 });
+  });
+
+  if (z >= 7) {
+    if (!map.hasLayer(roadLayer)) map.addLayer(roadLayer);
+  } else {
+    if (map.hasLayer(roadLayer)) map.removeLayer(roadLayer);
+  }
+}
+
+map.on("zoomend", updateMapDetail);
 
 async function api(path) {
   const res = await fetch(API_BASE + path);
@@ -98,51 +351,51 @@ async function api(path) {
   return data;
 }
 
-/*
 async function init() {
   try {
     const health = await api("/api/health");
-    $("api-status").textContent = `API online · ${health.cities} cities · ${health.roads} roads`;
+    $("api-status").textContent = `Online · ${health.cities} cities · ${health.roads} roads`;
     $("api-status").className = "ok";
+
     cities = await api("/api/cities");
     const roads = await api("/api/roads");
-    cities.forEach(c => cityByName[c.name] = c);
+
+    cities.forEach(c => {
+      cityByName[c.name] = c;
+      for (const id of ["source", "destination", "avoid"]) {
+        $(id).add(new Option(c.name, c.name));
+      }
+    });
 
     roads.forEach(r => {
       const a = cityByName[r.from], b = cityByName[r.to];
-      L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: "#9ca3af", weight: 1.5, opacity: .7 })
-        .bindTooltip(`${r.from} – ${r.to}: ${r.km} km`, { sticky: true }).addTo(map);
+      if (!a || !b) return;
+      L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: "#94a3b8", weight: 1.2, opacity: 0.55 })
+        .bindTooltip(`${r.from} – ${r.to}: ${r.km} km`, { sticky: true })
+        .addTo(roadLayer);
     });
+
     cities.forEach(c => {
-      markers[c.name] = L.circleMarker([c.lat, c.lon], { radius: 5, color: "#111827", weight: 1, fillColor: "#fff", fillOpacity: 1 })
-        .bindTooltip(c.name).addTo(map)
-        .on("click", () => pickFromMap(c.name));
-      for (const id of ["source", "destination", "avoid"]) $(id).add(new Option(c.name, c.name));
+      markers[c.name] = L.circleMarker([c.lat, c.lon], {
+        radius: 1.8,
+        color: "#334155",
+        weight: 0.6,
+        fillColor: "#ffffff",
+        fillOpacity: 0.6
+      })
+        .bindTooltip(c.name)
+        .on("click", () => pickFromMap(c.name))
+        .addTo(cityLayer);
     });
-    $("source").value = "Delhi"; $("destination").value = "Mumbai";
+
+    if (cityByName["Delhi"]) $("source").value = "Delhi";
+    if (cityByName["Mumbai"]) $("destination").value = "Mumbai";
     $("avoid").selectedIndex = -1;
+    updateAvoidCount();
+    updateClickCue();
+    updateMapDetail();
   } catch (e) {
-    $("api-status").textContent = "API offline";
-    $("api-status").className = "err";
-    $("result").style.display = "block";
-    $("result").innerHTML = `<div class="err">Cannot reach API (${e.message}). Start the server with <code>python app.py</code>.</div>`;
-  }
-}
-  */
- async function init() {
-  try {
-    const health = await api("/api/health");
-    $("api-status").textContent = `API online · ${health.cities} cities · ${health.roads} roads`;
-    $("api-status").className = "ok";
-    cities = await api("/api/cities");
-    cities.forEach(c => {
-      cityByName[c.name] = c;
-      for (const id of ["source", "destination", "avoid"]) $(id).add(new Option(c.name, c.name));
-    });
-    $("source").value = "Delhi"; $("destination").value = "Mumbai";
-    $("avoid").selectedIndex = -1;
-  } catch (e) {
-    $("api-status").textContent = "API offline";
+    $("api-status").textContent = "Offline";
     $("api-status").className = "err";
     $("result").style.display = "block";
     $("result").innerHTML = `<div class="err">Cannot reach API (${e.message}). Start the server with <code>python app.py</code>.</div>`;
@@ -151,46 +404,75 @@ async function init() {
 
 function pickFromMap(name) {
   $(clickToggle === 0 ? "source" : "destination").value = name;
-  clickToggle = 1 - clickToggle;
+  clickToggle = clickToggle === 0 ? 1 : 0;
+  updateClickCue();
 }
 
 function query() {
   const avoid = [...$("avoid").selectedOptions].map(o => o.value).join(",");
-  const p = new URLSearchParams({ source: $("source").value, destination: $("destination").value, avoid });
-  return p;
+  return new URLSearchParams({ source: $("source").value, destination: $("destination").value, avoid });
 }
 
-function clearLayers() { routeLayer.clearLayers(); exploreLayer.clearLayers(); }
+function clearLayers() {
+  routeLayer.clearLayers();
+  exploreLayer.clearLayers();
+}
 
 function drawAvoided() {
   [...$("avoid").selectedOptions].forEach(o => {
     const c = cityByName[o.value];
-    L.circleMarker([c.lat, c.lon], { radius: 9, color: "#dc2626", weight: 2, fillOpacity: .15 }).addTo(exploreLayer);
+    if (!c) return;
+    L.circleMarker([c.lat, c.lon], { radius: 8, color: "#dc2626", weight: 2, fillOpacity: 0.15 }).addTo(exploreLayer);
   });
 }
 
 function draw(res) {
-  clearLayers(); drawAvoided();
-  res.explored.forEach(n => {
+  clearLayers();
+  drawAvoided();
+  (res.explored || []).forEach(n => {
     const c = cityByName[n];
-    L.circleMarker([c.lat, c.lon], { radius: 8, color: "#f59e0b", weight: 1, fillColor: "#f59e0b", fillOpacity: .35 }).addTo(exploreLayer);
+    if (!c) return;
+    L.circleMarker([c.lat, c.lon], {
+      radius: 7,
+      color: "#f59e0b",
+      weight: 1,
+      fillColor: "#f59e0b",
+      fillOpacity: 0.35
+    }).addTo(exploreLayer);
   });
-  if (res.found) {
+
+  if (res.found && Array.isArray(res.path) && res.path.length > 0) {
     const pts = res.path.map(n => [cityByName[n].lat, cityByName[n].lon]);
-    // dashed straight line shown first as a fallback, replaced by the real road once loaded
     const fallback = L.polyline(pts, { color: "#2563eb", weight: 3, dashArray: "6 8" }).addTo(routeLayer);
+
     res.path.forEach((n, i) => {
       const c = cityByName[n];
-      L.circleMarker([c.lat, c.lon], { radius: 7, color: "#2563eb", fillColor: i === 0 ? "#16a34a" : i === res.path.length - 1 ? "#dc2626" : "#2563eb", fillOpacity: 1, weight: 2 })
-        .bindTooltip(n, { permanent: true, direction: "top", offset: [0, -6] }).addTo(routeLayer);
+      const isEndpoint = i === 0 || i === res.path.length - 1;
+      const fillColor = i === 0 ? "#16a34a" : i === res.path.length - 1 ? "#dc2626" : "#2563eb";
+      const marker = L.circleMarker([c.lat, c.lon], {
+        radius: isEndpoint ? 7 : 5.5,
+        color: "#2563eb",
+        fillColor,
+        fillOpacity: 1,
+        weight: 2
+      }).addTo(routeLayer);
+
+      if (isEndpoint) {
+        marker.bindTooltip(n, { permanent: true, direction: "top", offset: [0, -6] });
+      } else {
+        marker.bindTooltip(n, { direction: "top", offset: [0, -5] });
+      }
     });
-    map.fitBounds(L.latLngBounds(pts).pad(0.2));
+
+    if (pts.length > 1) {
+      map.fitBounds(L.latLngBounds(pts).pad(0.2));
+    } else {
+      map.setView(pts[0], 8);
+    }
     drawRoad(res, fallback);
   }
 }
 
-// Fetch real road geometry through the chosen cities (OSRM public routing service).
-// The DSA algorithm decides WHICH cities to pass through; OSRM only draws the road shape between them.
 let drawToken = 0;
 async function drawRoad(res, fallback) {
   const token = ++drawToken;
@@ -198,19 +480,19 @@ async function drawRoad(res, fallback) {
   try {
     const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
     const d = await r.json();
-    if (token !== drawToken) return;            // user already started another search
+    if (token !== drawToken) return;
     if (d.code !== "Ok") throw new Error(d.code);
     const route = d.routes[0];
     routeLayer.removeLayer(fallback);
-    L.geoJSON(route.geometry, { style: { color: "#2563eb", weight: 5, opacity: .9 } }).addTo(routeLayer).bringToBack();
+    L.geoJSON(route.geometry, { style: { color: "#2563eb", weight: 4.5, opacity: 0.9 } }).addTo(routeLayer).bringToBack();
     const el = $("road-info");
     if (el) {
       const mins = Math.round(route.duration / 60);
-      el.innerHTML = `<span>Real road distance</span><b>${(route.distance / 1000).toFixed(0)} km · ${Math.floor(mins / 60)} h ${mins % 60} min</b>`;
+      el.innerHTML = `<span>Real road</span><b>${(route.distance / 1000).toFixed(0)} km · ${Math.floor(mins / 60)} h ${mins % 60} min</b>`;
     }
   } catch (e) {
     const el = $("road-info");
-    if (el) el.innerHTML = `<span>Real road distance</span><b>unavailable (offline?)</b>`;
+    if (el) el.innerHTML = `<span>Real road</span><b>unavailable</b>`;
   }
 }
 
@@ -223,13 +505,15 @@ function showResult(res) {
   }
   const names = { dijkstra: "Dijkstra", astar: "A*", bfs: "BFS" };
   box.innerHTML = `
-    <div class="big">${res.distance_km} km <small style="font-size:12px;font-weight:400;color:var(--muted)">graph estimate</small></div>
-    <div class="stat" id="road-info"><span>Real road distance</span><b>loading…</b></div>
-    <div class="stat"><span>Estimated drive (60 km/h)</span><b>${res.eta_hours} h ${res.eta_minutes} min</b></div>
-    <div class="stat"><span>Roads used</span><b>${res.hops}</b></div>
+    <div class="big">${res.distance_km} km <small>graph est.</small></div>
+    <div class="stat" id="road-info"><span>Real road</span><b>loading…</b></div>
+    <div class="stat"><span>Est. drive (60 km/h)</span><b>${res.eta_hours} h ${res.eta_minutes} min</b></div>
     <div class="stat"><span>Algorithm</span><b>${names[res.algorithm]}</b></div>
-    <div class="stat"><span>Cities explored</span><b>${res.nodes_explored}</b></div>
-    <div class="stat"><span>Compute time</span><b>${res.time_ms} ms</b></div>
+    <div class="meta-strip">
+      <div class="meta-cell"><div class="val">${res.hops}</div><div class="lbl">Hops</div></div>
+      <div class="meta-cell"><div class="val">${res.nodes_explored}</div><div class="lbl">Explored</div></div>
+      <div class="meta-cell"><div class="val">${res.time_ms} ms</div><div class="lbl">Time</div></div>
+    </div>
     <ol class="legs">${res.legs.map(l => `<li>${l.from} → ${l.to} <span>${l.km} km</span></li>`).join("")}</ol>`;
 }
 
@@ -237,8 +521,12 @@ $("go").onclick = async () => {
   try {
     $("compare-card").style.display = "none";
     const res = await api(`/api/route?${query()}&algorithm=${$("algorithm").value}`);
-    draw(res); showResult(res);
-  } catch (e) { $("result").style.display = "block"; $("result").innerHTML = `<div class="err">${e.message}</div>`; }
+    draw(res);
+    showResult(res);
+  } catch (e) {
+    $("result").style.display = "block";
+    $("result").innerHTML = `<div class="err">${e.message}</div>`;
+  }
 };
 
 $("compare").onclick = async () => {
@@ -250,13 +538,21 @@ $("compare").onclick = async () => {
     card.style.display = "block";
     card.innerHTML = `<table><tr><th>Algorithm</th><th>km</th><th>Hops</th><th>Explored</th><th>ms</th></tr>` +
       list.map(r => `<tr class="${r.found && r.distance_km === best ? "best" : ""}"><td>${names[r.algorithm]}</td><td>${r.found ? r.distance_km : "–"}</td><td>${r.found ? r.hops : "–"}</td><td>${r.nodes_explored}</td><td>${r.time_ms}</td></tr>`).join("") +
-      `</table><div class="hint">Green = shortest distance. BFS minimises the number of roads, not kilometres. A* explores fewer cities than Dijkstra.</div>`;
+      `</table><div class="hint">Green = shortest distance. BFS minimizes hops; A* usually explores fewer nodes than Dijkstra.</div>`;
     const d = list.find(r => r.algorithm === $("algorithm").value) || list[0];
-    draw(d); showResult(d);
-  } catch (e) { $("result").style.display = "block"; $("result").innerHTML = `<div class="err">${e.message}</div>`; }
+    draw(d);
+    showResult(d);
+  } catch (e) {
+    $("result").style.display = "block";
+    $("result").innerHTML = `<div class="err">${e.message}</div>`;
+  }
 };
 
-$("swap").onclick = () => { const s = $("source").value; $("source").value = $("destination").value; $("destination").value = s; };
+$("swap").onclick = () => {
+  const s = $("source").value;
+  $("source").value = $("destination").value;
+  $("destination").value = s;
+};
 
 init();
 </script>
